@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { router } from 'expo-router'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabase'
 import { apiPost } from '../api/client'
@@ -42,5 +43,6 @@ export const useAuth = create<AuthState>((set) => ({
     useProfile.setState({ profile: null, vitals: [], adherence: [], error: null })
     useChat.setState({ messages: [], conversationId: null, error: null })
     set({ session: null })
+    router.replace('/sign-in')
   },
 }))
