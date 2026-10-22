@@ -1,0 +1,49 @@
+name: ios
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ['v*']
+
+jobs:
+  diawi:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+      - run: npm ci
+
+      - name: Build IPA
+        run: eas build --platform ios --profile preview --non-interactive --wait
+
+      - name: Download IPA
+        run: |
+          URL=$(eas build:list --platform ios --limit 1 --status finished \
+                  --non-interactive --json | node -e \
+                  'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>console.log(JSON.parse(s)[0].artifacts.buildUrl))')
+          curl -fL "$URL" -o kaya.ipa
+
+      # Diawi takes the upload, then you poll the job until it yields a link.
+      - name: Upload to Diawi
+        run: |
+          JOB=$(curl -fsS https://upload.diawi.com/ \
+                  -F token="${{ secrets.DIAWI_TOKEN }}" \
+                  -F file=@kaya.ipa | node -pe 'JSON.parse(require("fs").readFileSync(0)).job')
+          for i in $(seq 1 30); do
+            sleep 5
+            RES=$(curl -fsS "https://upload.diawi.com/status?token=${{ secrets.DIAWI_TOKEN }}&job=$JOB")
+            STATUS=$(echo "$RES" | node -pe 'JSON.parse(require("fs").readFileSync(0)).status')
+            if [ "$STATUS" = "2000" ]; then
+              echo "$RES" | node -pe '"Diawi: " + JSON.parse(require("fs").readFileSync(0)).link'
+              exit 0
+            fi
+            if [ "$STATUS" = "4000" ]; then echo "$RES"; exit 1; fi
+          done
+          echo "Diawi did not finish in time"; exit 1

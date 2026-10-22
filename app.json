@@ -1,0 +1,32 @@
+{
+  "expo": {
+    "name": "Kaya",
+    "slug": "kaya",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "scheme": "kaya",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "icon": "./assets/icon.png",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#EFEAE2"
+    },
+    "ios": { "supportsTablet": true, "bundleIdentifier": "com.devgaur.kaya" },
+    "android": {
+      "package": "com.devgaur.kaya",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#EFEAE2"
+      }
+    },
+    "plugins": ["expo-router"],
+    "extra": {
+      "apiUrl": "http://localhost:3001",
+      "supabaseUrl": "",
+      "supabaseAnonKey": "",
+      "eas": { "projectId": "" }
+    }
+  }
+}
