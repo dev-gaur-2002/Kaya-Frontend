@@ -21,11 +21,35 @@ npx expo start
 The anon key is public by design — it ships in the bundle. Row-level security on
 every table is what protects the data; see the backend migration.
 
+## Demo sign-in
+
+No password and no sign-up screen. `app/sign-in.tsx` takes a name, posts it to
+the backend's `/api/demo/login`, and sets the session it gets back — the account
+is created on first sight. Real Supabase session, so tokens and RLS work exactly
+as they would with a password.
+
+Type the same name later and you are back in that profile. Whether you see
+onboarding is `profiles.onboarded_at` and nothing else: a new name starts at
+question one, a returning one goes straight to chat.
+
+The four names pre-built by the backend's `npm run seed:demo` arrive already
+onboarded, and the screen offers them as taps:
+
+| Name | What it shows |
+|---|---|
+| Asha | high BP + kidney disease — advice gated by `constraints.ckd` |
+| Ravi | type 2 diabetes on night shifts |
+| Meera | prediabetes + pregnant — no weight or calorie framing |
+| Sam | heart disease — `constraints.exercise_restricted`, no workout plans |
+
+Ask each of them the same question to see the profile change the answer.
+
 ## Screens
 
 | Route | |
 |---|---|
 | `app/index.tsx` | gate: signed out → sign-in, not onboarded → onboarding, else chat |
+| `app/sign-in.tsx` | name only, no password |
 | `app/onboarding.tsx` | renders the question set **fetched from the server** |
 | `app/(tabs)/chat.tsx` | conversation |
 | `app/(tabs)/today.tsx` | goals and quick vitals logging |

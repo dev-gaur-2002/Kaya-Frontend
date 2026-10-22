@@ -6,6 +6,7 @@ import { useProfile } from '../../src/store/useProfile'
 import { useAuth } from '../../src/store/useAuth'
 import { apiUpload } from '../../src/api/client'
 import { Title, Muted, Card, Body, Button } from '../../src/components/ui'
+import { toDMY } from '../../src/lib/date'
 
 export default function ProfileScreen() {
   const { profile, vitals, load, confirmVital } = useProfile()
@@ -97,7 +98,7 @@ export default function ProfileScreen() {
                   <Body className="font-semibold">
                     {v.kind.replace(/_/g, ' ')}: {v.value} {v.unit}
                   </Body>
-                  <Muted>{v.measured_at.slice(0, 10)}</Muted>
+                  <Muted>{toDMY(v.measured_at)}</Muted>
                 </View>
                 <Pressable
                   accessibilityRole="button"

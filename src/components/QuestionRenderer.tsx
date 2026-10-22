@@ -1,6 +1,7 @@
 import { View, TextInput, Pressable, Text } from 'react-native'
 import type { Question } from '../types'
 import { Title, Muted, Chip } from './ui'
+import { DatePicker } from './DatePicker'
 
 /**
  * The piece that makes onboarding config-driven: one component that switches on
@@ -48,14 +49,7 @@ export function QuestionRenderer({
       )}
 
       {question.type === 'date' && (
-        <TextInput
-          className={input}
-          value={(value as string) ?? ''}
-          onChangeText={onChange}
-          placeholder="YYYY-MM-DD"
-          placeholderTextColor="#8A8179"
-          autoCapitalize="none"
-        />
+        <DatePicker value={value as string} onChange={onChange} />
       )}
 
       {question.type === 'boolean' && (

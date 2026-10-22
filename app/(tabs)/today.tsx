@@ -5,6 +5,7 @@ import { useProfile } from '../../src/store/useProfile'
 import { useConfig } from '../../src/store/useConfig'
 import { apiPost } from '../../src/api/client'
 import { Title, Muted, Card, Body } from '../../src/components/ui'
+import { toDMY } from '../../src/lib/date'
 
 const QUICK_VITALS = [
   { kind: 'systolic', label: 'Systolic', unit: 'mmHg' },
@@ -120,7 +121,7 @@ export default function Today() {
                 <View key={v.id} className="flex-row justify-between">
                   <Body>{v.kind.replace(/_/g, ' ')}</Body>
                   <Muted>
-                    {v.value} {v.unit} · {v.measured_at.slice(0, 10)}
+                    {v.value} {v.unit} · {toDMY(v.measured_at)}
                     {v.confirmed ? '' : ' · unconfirmed'}
                   </Muted>
                 </View>

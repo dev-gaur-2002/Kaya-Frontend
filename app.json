@@ -13,20 +13,29 @@
       "resizeMode": "contain",
       "backgroundColor": "#EFEAE2"
     },
-    "ios": { "supportsTablet": true, "bundleIdentifier": "com.devgaur.kaya" },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.devgaur.kaya"
+    },
     "android": {
       "package": "com.devgaur.kaya",
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png",
         "backgroundColor": "#EFEAE2"
       }
     },
-    "plugins": ["expo-router"],
+    "plugins": [
+      "expo-router"
+    ],
     "extra": {
       "apiUrl": "http://localhost:3001",
       "supabaseUrl": "",
       "supabaseAnonKey": "",
-      "eas": { "projectId": "" }
+      "eas": {
+        "projectId": ""
+      }
     }
   }
 }
