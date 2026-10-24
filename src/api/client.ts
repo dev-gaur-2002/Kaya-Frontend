@@ -8,11 +8,22 @@ async function authHeader(): Promise<Record<string, string>> {
 }
 
 async function handle(res: Response) {
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({ error: res.statusText }))
-    throw new Error(body.error ?? `request failed (${res.status})`)
+  // Read the body once as text: a non-JSON reply (a proxy/captive-portal page, a
+  // Vercel "A server error has occurred") must surface as itself rather than as an
+  // opaque "JSON parse error: unexpected character".
+  const text = await res.text()
+  if (!text) {
+    if (res.ok) return null
+    throw new Error(`request failed (${res.status})`)
   }
-  return res.json()
+  let body: any
+  try {
+    body = JSON.parse(text)
+  } catch {
+    throw new Error(`server sent ${res.status} non-JSON: ${text.slice(0, 200)}`)
+  }
+  if (!res.ok) throw new Error(body?.error ?? `request failed (${res.status})`)
+  return body
 }
 
 export async function apiGet<T>(path: string): Promise<T> {
@@ -43,6 +54,12 @@ export async function apiUpload<T>(
   for (const f of files) {
     // RN's FormData takes this shape for a local file URI. The server sniffs the
     // bytes regardless, so a wrong type here is caught rather than trusted.
+    //
+    // ponytail: this needs RN's fetch, not expo/fetch — the SDK 54+ default
+    // throws "Unsupported FormDataPart implementation" on a {uri} part. The
+    // EXPO_PUBLIC_USE_RN_FETCH=1 in .env keeps RN's, which streams the file from
+    // disk instead of reading it into JS memory. If Expo drops that flag, switch
+    // to `new File(uri)` from expo-file-system and watch memory on 10 MB PDFs.
     form.append('file', {
       uri: f.uri,
       name: f.name,
