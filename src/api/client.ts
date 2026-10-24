@@ -29,10 +29,26 @@ export async function apiPost<T>(path: string, body?: unknown): Promise<T> {
   )
 }
 
-export async function apiUpload<T>(path: string, uri: string, name: string): Promise<T> {
+export type UploadFile = { uri: string; name: string; mimeType?: string }
+
+/** One PDF, a set of photographs of the same report, or one meal photo. */
+export async function apiUpload<T>(
+  path: string,
+  files: UploadFile[],
+  fields?: Record<string, string | undefined>,
+): Promise<T> {
   const form = new FormData()
-  // RN's FormData takes this shape for a local file URI.
-  form.append('file', { uri, name, type: 'application/pdf' } as unknown as Blob)
+  // Fields first so multer has them parsed by the time the handler runs.
+  for (const [k, v] of Object.entries(fields ?? {})) if (v != null) form.append(k, v)
+  for (const f of files) {
+    // RN's FormData takes this shape for a local file URI. The server sniffs the
+    // bytes regardless, so a wrong type here is caught rather than trusted.
+    form.append('file', {
+      uri: f.uri,
+      name: f.name,
+      type: f.mimeType ?? 'application/octet-stream',
+    } as unknown as Blob)
+  }
   return handle(
     await fetch(`${API_URL}${path}`, {
       method: 'POST',

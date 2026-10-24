@@ -1,8 +1,6 @@
 import { create } from 'zustand'
 import { apiGet, apiPost } from '../api/client'
-import type { Profile, Vital } from '../types'
-
-type Adherence = { goal_code: string; done: number; of: number }
+import type { Profile, Vital, Adherence } from '../types'
 
 type ProfileState = {
   profile: Profile | null
@@ -12,8 +10,8 @@ type ProfileState = {
   error: string | null
   load: () => Promise<void>
   submitOnboarding: (answers: Record<string, unknown>) => Promise<void>
-  logVital: (kind: string, value: number, unit: string) => Promise<void>
   confirmVital: (id: string) => Promise<void>
+  logGoal: (code: string, value: number) => Promise<void>
 }
 
 export const useProfile = create<ProfileState>((set, get) => ({
@@ -46,13 +44,15 @@ export const useProfile = create<ProfileState>((set, get) => ({
     }
   },
 
-  logVital: async (kind, value, unit) => {
-    await apiPost('/api/vitals', { kind, value, unit })
+  confirmVital: async (id) => {
+    await apiPost(`/api/vitals/${id}/confirm`)
     await get().load()
   },
 
-  confirmVital: async (id) => {
-    await apiPost(`/api/vitals/${id}/confirm`)
+  // Set-absolute: the screen sends the count it is now showing, so a retry or a
+  // double tap cannot double-count. The server decides whether that hits target.
+  logGoal: async (code, value) => {
+    await apiPost(`/api/goals/${code}/log`, { value })
     await get().load()
   },
 }))

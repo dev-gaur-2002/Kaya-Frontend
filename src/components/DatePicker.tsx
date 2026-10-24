@@ -11,8 +11,8 @@ const ROW = 48
  * palette and colour scheme, which is the one thing on this screen that cannot
  * be made to look like the rest of the app.
  *
- * ponytail: tap-to-select columns, not snapping wheels — no scroll maths to get
- * wrong. Swap in snapToInterval if the wheel feel is ever actually asked for.
+ * Columns snap, a row at a time, and tapping a row still works — the tap path is
+ * what screen readers and anyone who dislikes flinging a wheel actually use.
  */
 export function DatePicker({
   value,
@@ -64,7 +64,9 @@ export function DatePicker({
             </Text>
 
             <View className="flex-row gap-3" style={{ height: ROW * 5 }}>
-              <Column items={days.map(String)} values={days} selected={day} onSelect={setD} />
+              {/* Keyed on the month's length: Jan 31 -> Feb clamps the day, and
+                  remounting is what re-centres the column on the clamped value. */}
+              <Column key={max} items={days.map(String)} values={days} selected={day} onSelect={setD} />
               <Column
                 items={MONTHS}
                 values={MONTHS.map((_, i) => i + 1)}
@@ -114,12 +116,27 @@ function Column({
   const ref = useRef<ScrollViewInstance>(null)
   const centred = useRef(false)
 
+  // Two rows of padding top and bottom means an offset of i * ROW puts item i in
+  // the centre slot, so the offset the scroll settles at is the index directly.
+  function settle(y: number) {
+    const i = Math.min(values.length - 1, Math.max(0, Math.round(y / ROW)))
+    if (values[i] !== selected) onSelect(values[i]!)
+  }
+
   return (
     <ScrollView
       ref={ref}
       className="flex-1 rounded-card bg-surface"
       showsVerticalScrollIndicator={false}
       contentContainerStyle={{ paddingVertical: ROW * 2 }}
+      snapToInterval={ROW}
+      snapToAlignment="start"
+      disableIntervalMomentum
+      decelerationRate="fast"
+      onMomentumScrollEnd={(e) => settle(e.nativeEvent.contentOffset.y)}
+      // A slow drag never starts momentum, so it would otherwise snap back
+      // visually without ever committing the value.
+      onScrollEndDrag={(e) => settle(e.nativeEvent.contentOffset.y)}
       onContentSizeChange={() => {
         if (centred.current) return
         centred.current = true
@@ -134,11 +151,14 @@ function Column({
             key={label}
             accessibilityRole="radio"
             accessibilityState={{ selected: on }}
-            onPress={() => onSelect(values[i])}
-            className={`items-center justify-center ${on ? 'bg-accent' : ''}`}
+            onPress={() => {
+              onSelect(values[i]!)
+              ref.current?.scrollTo({ y: i * ROW, animated: true })
+            }}
+            className="items-center justify-center"
             style={{ height: ROW }}
           >
-            <Text className={on ? 'text-base font-semibold text-surface' : 'text-base text-ink'}>
+            <Text className={on ? 'text-lg font-semibold text-ink' : 'text-base text-muted'}>
               {label}
             </Text>
           </Pressable>

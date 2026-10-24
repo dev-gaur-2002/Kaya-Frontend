@@ -5,14 +5,18 @@ import {
   TextInput,
   Pressable,
   Text,
+  Image,
+  Alert,
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
 } from 'react-native'
 import type { ScrollViewInstance } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import * as ImagePicker from 'expo-image-picker'
 import { useChat } from '../../src/store/useChat'
 import { Muted } from '../../src/components/ui'
+import { CameraIcon } from '../../src/components/icons'
 import { dayLabel, timeOf } from '../../src/lib/date'
 import type { Message } from '../../src/types'
 
@@ -47,9 +51,19 @@ function Bubble({ message, grouped }: { message: Message; grouped: boolean }) {
       }`}
       style={mine ? OUT : IN}
     >
-      <Text className={`text-base leading-6 ${mine ? 'text-surface' : 'text-ink'}`}>
-        {message.content}
-      </Text>
+      {message.image_uri ? (
+        <Image
+          source={{ uri: message.image_uri }}
+          className="mb-1 h-44 w-44 rounded-2xl"
+          resizeMode="cover"
+          accessibilityLabel="The meal you sent"
+        />
+      ) : null}
+      {message.content ? (
+        <Text className={`text-base leading-6 ${mine ? 'text-surface' : 'text-ink'}`}>
+          {message.content}
+        </Text>
+      ) : null}
       <Text
         className={`mt-1 self-end text-[11px] ${mine ? 'text-surface opacity-70' : 'text-muted'}`}
       >
@@ -68,19 +82,56 @@ function DaySeparator({ label }: { label: string }) {
 }
 
 export default function Chat() {
-  const { messages, send, sending, error, loadFollowUp } = useChat()
+  const { messages, send, sendMeal, sending, loading, error, load, loadFollowUp, lastLogged } =
+    useChat()
   const [draft, setDraft] = useState('')
   const scroll = useRef<ScrollViewInstance>(null)
 
   useEffect(() => {
-    loadFollowUp()
-  }, [loadFollowUp])
+    load().then(loadFollowUp)
+    // A meal follow-up comes due hours after the meal, so asking only on open
+    // means it arrives on the next launch instead of while they are here.
+    // ponytail: one poll a minute. Swap for push when follow-ups leave the app.
+    const t = setInterval(loadFollowUp, 60_000)
+    return () => clearInterval(t)
+  }, [load, loadFollowUp])
 
   function submit() {
     const text = draft.trim()
     if (!text || sending) return
     setDraft('')
     send(text)
+  }
+
+  async function pickMeal(from: 'camera' | 'album') {
+    const perm =
+      from === 'camera'
+        ? await ImagePicker.requestCameraPermissionsAsync()
+        : await ImagePicker.requestMediaLibraryPermissionsAsync()
+    if (!perm.granted) {
+      Alert.alert(
+        from === 'camera' ? 'Camera access is off' : 'Photo access is off',
+        'Turn it on in Settings to send Kaya a picture of a meal.',
+      )
+      return
+    }
+    // quality below 1 keeps a phone photo under the 4 MB the reader accepts.
+    const res =
+      from === 'camera'
+        ? await ImagePicker.launchCameraAsync({ quality: 0.6 })
+        : await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.6 })
+    const asset = res.canceled ? null : res.assets?.[0]
+    if (asset) sendMeal({ uri: asset.uri, mimeType: asset.mimeType })
+  }
+
+  // ponytail: the OS sheet, not a custom one. It is two choices and the
+  // platform already draws it the way people expect.
+  function addMeal() {
+    Alert.alert('Send a meal photo', 'Kaya will look at it and reply.', [
+      { text: 'Take a photo', onPress: () => pickMeal('camera') },
+      { text: 'Choose from album', onPress: () => pickMeal('album') },
+      { text: 'Cancel', style: 'cancel' },
+    ])
   }
 
   return (
@@ -96,13 +147,19 @@ export default function Chat() {
           contentContainerStyle={{ paddingVertical: 16, flexGrow: 1, justifyContent: 'flex-end' }}
           onContentSizeChange={() => scroll.current?.scrollToEnd({ animated: true })}
         >
-          {messages.length === 0 && (
+          {loading && messages.length === 0 ? (
+            <ActivityIndicator className="py-16" color="#8A8179" />
+          ) : null}
+
+          {!loading && messages.length === 0 && (
             <View className="items-center gap-3 py-16">
               <Text className="text-2xl">✨</Text>
               <Text className="text-center font-serif text-[22px] leading-8 text-ink">
                 How has today been?
               </Text>
               <Muted>Tell me a number, a meal, or just how you feel.</Muted>
+              <Muted>Readings go here too — “bp 140/90” or “sugar 110”.</Muted>
+              <Muted>Send a photo of a meal, or ask to track a new goal.</Muted>
             </View>
           )}
 
@@ -126,6 +183,20 @@ export default function Chat() {
             </View>
           )}
 
+          {/* Confirmation that the numbers in that message were recorded, not just
+              read. ponytail: in-memory, so it clears on the next send and is gone
+              after a reload — vitals are not linked to a message id server-side. */}
+          {lastLogged.length > 0 && (
+            <View className="mt-3 self-center rounded-pill bg-surface px-4 py-1.5">
+              <Text className="text-xs text-muted">
+                ✓ Saved{' '}
+                {lastLogged
+                  .map((v) => `${v.kind.replace(/_/g, ' ')} ${v.value} ${v.unit}`)
+                  .join(' · ')}
+              </Text>
+            </View>
+          )}
+
           {error ? (
             <View className="my-2 rounded-card border border-alarm/30 bg-alarm/10 p-4">
               <Text className="text-alarm">{error}</Text>
@@ -143,6 +214,17 @@ export default function Chat() {
             multiline
             onSubmitEditing={submit}
           />
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Send a meal photo"
+            onPress={addMeal}
+            disabled={sending}
+            className={`h-12 w-12 items-center justify-center rounded-pill border border-line ${
+              sending ? 'opacity-40' : ''
+            }`}
+          >
+            <CameraIcon color="#6E4A33" />
+          </Pressable>
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Send"

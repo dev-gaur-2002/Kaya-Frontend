@@ -34,3 +34,15 @@ export function dayLabel(iso: string): string {
   if (diff === 1) return 'Yesterday'
   return toDMY(toISODate(d.getFullYear(), d.getMonth() + 1, d.getDate()))
 }
+
+/** Whole years since dob. Null when they never gave one. */
+export function ageFrom(dob: string | null | undefined): number | null {
+  if (!dob) return null
+  const [y, m, d] = dob.slice(0, 10).split('-').map(Number)
+  if (!y || !m || !d) return null
+  const now = new Date()
+  let age = now.getFullYear() - y
+  // Birthday not yet reached this year.
+  if (now.getMonth() + 1 < m || (now.getMonth() + 1 === m && now.getDate() < d)) age--
+  return age >= 0 && age < 130 ? age : null
+}

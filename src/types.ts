@@ -1,16 +1,19 @@
 export type Question = {
   id: string
-  type: 'single' | 'multi' | 'number' | 'text' | 'date' | 'boolean'
+  type: 'single' | 'multi' | 'number' | 'text' | 'date' | 'boolean' | 'height'
   prompt: string
   help_text?: string
   options?: { value: string; label: string }[]
   validation?: { min?: number; max?: number; required?: boolean }
   show_if?: { question: string; in: string[] }
+  /** Offers a file upload alongside the answer — a prescription, on medications. */
+  allow_upload?: boolean
   writes_to: string
 }
 
 export type Profile = {
   id: string
+  name: string | null
   dob: string | null
   sex: string | null
   conditions: string[]
@@ -37,6 +40,9 @@ export type Message = {
   content: string
   safety_rule_key: string | null
   created_at: string
+  /** Local file URI of a meal photo, for this session only — the server keeps
+      the description it read, not the picture, so this is gone after a reload. */
+  image_uri?: string
 }
 
 export type GoalTemplate = {
@@ -46,3 +52,6 @@ export type GoalTemplate = {
   default_target: number
   cadence: 'daily' | 'weekly'
 }
+
+/** `today` is the current day's logged count; `done` is days hit in the last 7. */
+export type Adherence = { goal_code: string; done: number; of: number; today: number }

@@ -27,7 +27,14 @@
       }
     },
     "plugins": [
-      "expo-router"
+      "expo-router",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Kaya uses your photos so you can send it a picture of a meal.",
+          "cameraPermission": "Kaya uses the camera so you can photograph a meal and send it."
+        }
+      ]
     ],
     "extra": {
       "apiUrl": "http://localhost:3001",

@@ -1,5 +1,5 @@
 import { Text, Pressable, View, ActivityIndicator } from 'react-native'
-import type { ReactNode } from 'react'
+import type { ComponentType, ReactNode } from 'react'
 
 export function Title({ children }: { children: ReactNode }) {
   return <Text className="font-serif text-3xl leading-tight text-ink">{children}</Text>
@@ -23,28 +23,41 @@ export function Button({
   disabled,
   busy,
   variant = 'primary',
+  icon: Icon,
 }: {
   label: string
   onPress: () => void
   disabled?: boolean
   busy?: boolean
-  variant?: 'primary' | 'ghost'
+  variant?: 'primary' | 'ghost' | 'danger'
+  // Taken as a component, not an element, so the icon inherits the variant's
+  // text colour instead of each caller having to know it.
+  icon?: ComponentType<{ color: string }>
 }) {
   const off = disabled || busy
-  const base = variant === 'primary' ? 'bg-primary' : 'bg-transparent border border-line'
-  const text = variant === 'primary' ? 'text-surface' : 'text-ink'
+  // `danger` is the alarm colour in its quiet register — outline and ink, never
+  // a fill. The filled alarm card is reserved for medical escalation and has to
+  // stay the loudest thing in the app.
+  const look = {
+    primary: { box: 'bg-primary', text: 'text-surface', ink: '#FAF7F2' },
+    ghost: { box: 'bg-transparent border border-line', text: 'text-ink', ink: '#2E2A26' },
+    danger: { box: 'bg-transparent border border-alarm/30', text: 'text-alarm', ink: '#A33A28' },
+  }[variant]
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityState={{ disabled: off }}
       disabled={off}
       onPress={onPress}
-      className={`${base} ${off ? 'opacity-40' : ''} items-center rounded-pill px-6 py-4`}
+      className={`${look.box} ${off ? 'opacity-40' : ''} flex-row items-center justify-center gap-2.5 rounded-pill px-6 py-4`}
     >
       {busy ? (
-        <ActivityIndicator color={variant === 'primary' ? '#FAF7F2' : '#2E2A26'} />
+        <ActivityIndicator color={look.ink} />
       ) : (
-        <Text className={`${text} text-base font-semibold`}>{label}</Text>
+        <>
+          {Icon ? <Icon color={look.ink} /> : null}
+          <Text className={`${look.text} text-base font-semibold`}>{label}</Text>
+        </>
       )}
     </Pressable>
   )

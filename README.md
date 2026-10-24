@@ -51,9 +51,8 @@ Ask each of them the same question to see the profile change the answer.
 | `app/index.tsx` | gate: signed out → sign-in, not onboarded → onboarding, else chat |
 | `app/sign-in.tsx` | name only, no password |
 | `app/onboarding.tsx` | renders the question set **fetched from the server** |
-| `app/(tabs)/chat.tsx` | conversation |
-| `app/(tabs)/today.tsx` | goals and quick vitals logging |
-| `app/(tabs)/profile.tsx` | the profile, PDF upload, confirming extracted values |
+| `app/(tabs)/chat.tsx` | conversation; readings are logged by typing them here |
+| `app/(tabs)/profile.tsx` | the profile, goals, recent readings, PDF upload, confirming extracted values |
 
 `src/components/QuestionRenderer.tsx` is what makes onboarding config-driven: one
 component switching on `type` from the API. Adding a question is a SQL update on

@@ -7,7 +7,8 @@
     "start": "expo start",
     "android": "expo run:android",
     "ios": "expo run:ios",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "check:onboarding": "tsc src/lib/onboarding.ts --ignoreConfig --module commonjs --target es2020 --outDir \"${TMPDIR:-/tmp}/kaya-check\" && node \"${TMPDIR:-/tmp}/kaya-check/onboarding.js\""
   },
   "repository": {
     "type": "git",
@@ -28,6 +29,7 @@
     "expo": "~58.0.17",
     "expo-constants": "~58.0.13",
     "expo-document-picker": "~58.0.4",
+    "expo-image-picker": "~58.0.10",
     "expo-linking": "~58.0.14",
     "expo-router": "~58.0.25",
     "expo-status-bar": "^58.0.4",

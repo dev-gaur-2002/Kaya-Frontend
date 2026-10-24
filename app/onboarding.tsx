@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react'
-import { View, ScrollView, ActivityIndicator } from 'react-native'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { View, ScrollView, ActivityIndicator, Pressable, Text, Animated, Easing } from 'react-native'
 import { useRouter } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useConfig } from '../src/store/useConfig'
@@ -15,6 +15,7 @@ export default function Onboarding() {
   const [answers, setAnswers] = useState<Record<string, unknown>>({})
   const [step, setStep] = useState(0)
   const [accepted, setAccepted] = useState(false)
+  const [finishing, setFinishing] = useState(false)
 
   useEffect(() => {
     load()
@@ -26,6 +27,17 @@ export default function Onboarding() {
     () => questions.filter((q) => isVisible(q, answers)),
     [questions, answers],
   )
+
+  async function finish(final: Record<string, unknown>) {
+    setFinishing(true)
+    try {
+      await submitOnboarding(final)
+      router.replace('/chat')
+    } catch {
+      // The error comes off the store and is shown on the finishing screen,
+      // which keeps the retry next to it rather than back behind the last question.
+    }
+  }
 
   if (!loaded) {
     return (
@@ -62,42 +74,49 @@ export default function Onboarding() {
     )
   }
 
-  const q = visible[step]
-  const done = step >= visible.length
-
-  async function finish(final: Record<string, unknown>) {
-    try {
-      await submitOnboarding(final)
-      router.replace('/chat')
-    } catch {
-      // error surfaces from the store below
-    }
+  if (finishing) {
+    return <Finishing error={error} busy={loading} onRetry={() => finish(answers)} />
   }
 
-  if (done) {
-    return (
-      <SafeAreaView className="flex-1 justify-center gap-6 bg-bg px-6">
-        <Body className="font-serif text-2xl">That is everything.</Body>
-        <Muted>Kaya will use this to make sure its advice actually fits you.</Muted>
-        <ErrorNote message={error ?? ''} />
-        <Button label="Finish" onPress={() => finish(answers)} busy={loading} />
-      </SafeAreaView>
-    )
-  }
+  // Changing an earlier answer can shorten the flow under us, so the index is
+  // clamped rather than trusted.
+  const idx = Math.min(step, visible.length - 1)
+  const q = visible[idx]
+  if (!q) return null
 
+  const last = idx === visible.length - 1
   const value = answers[q.id]
-  const canAdvance = isAnswered(q, value)
+
+  // The last question answered or skipped IS the end of onboarding. There is no
+  // confirmation screen to tap through afterwards.
+  function advance(next: Record<string, unknown>) {
+    if (last) finish(next)
+    else setStep(idx + 1)
+  }
+
+  function skip() {
+    // Skipped means unanswered, so a half-typed or out-of-range value does not
+    // ride along to the profile.
+    const { [q!.id]: _dropped, ...rest } = answers
+    setAnswers(rest)
+    advance(rest)
+  }
 
   return (
     <SafeAreaView className="flex-1 bg-bg">
       <View className="px-6 pb-2 pt-4">
-        <Muted>
-          {step + 1} of {visible.length}
-        </Muted>
+        <View className="flex-row items-center justify-between">
+          <Muted>
+            {idx + 1} of {visible.length}
+          </Muted>
+          <Pressable accessibilityRole="button" accessibilityLabel="Skip this question" onPress={skip} hitSlop={12}>
+            <Text className="text-sm text-muted underline">Skip</Text>
+          </Pressable>
+        </View>
         <View className="mt-2 h-1 overflow-hidden rounded-pill bg-line">
           <View
             className="h-1 rounded-pill bg-accent"
-            style={{ width: `${((step + 1) / visible.length) * 100}%` }}
+            style={{ width: `${((idx + 1) / visible.length) * 100}%` }}
           />
         </View>
       </View>
@@ -112,12 +131,77 @@ export default function Onboarding() {
 
       <View className="gap-3 px-6 pb-6 pt-4">
         <Button
-          label={step === visible.length - 1 ? 'Done' : 'Continue'}
-          onPress={() => setStep(step + 1)}
-          disabled={!canAdvance}
+          label={last ? 'Done' : 'Continue'}
+          onPress={() => advance(answers)}
+          disabled={!isAnswered(q, value)}
         />
-        {step > 0 && <Button label="Back" variant="ghost" onPress={() => setStep(step - 1)} />}
+        {idx > 0 && <Button label="Back" variant="ghost" onPress={() => setStep(idx - 1)} />}
       </View>
+    </SafeAreaView>
+  )
+}
+
+// Synthesis is a model call, so this screen is up for a few seconds. One line at
+// a time, each one naming something that is actually happening.
+const COPY = [
+  'Reading what you told us…',
+  'Working out which advice applies to you…',
+  'Setting aside the advice that does not…',
+  'Choosing a few things worth starting with…',
+  'Almost there…',
+]
+
+function Finishing({
+  error,
+  busy,
+  onRetry,
+}: {
+  error: string | null
+  busy: boolean
+  onRetry: () => void
+}) {
+  const [i, setI] = useState(0)
+  const fade = useRef(new Animated.Value(0)).current
+
+  // Keyed on the line, so each cycle hands over to the next one when it ends.
+  // Core Animated keeps this off the JS thread without pulling in reanimated.
+  useEffect(() => {
+    const ease = { easing: Easing.inOut(Easing.ease), useNativeDriver: true }
+    const anim = Animated.sequence([
+      Animated.timing(fade, { toValue: 1, duration: 450, ...ease }),
+      Animated.delay(1500),
+      Animated.timing(fade, { toValue: 0, duration: 450, ...ease }),
+    ])
+    anim.start(({ finished }) => {
+      if (finished) setI((n) => (n + 1) % COPY.length)
+    })
+    return () => anim.stop()
+  }, [i, fade])
+
+  if (error && !busy) {
+    return (
+      <SafeAreaView className="flex-1 justify-center gap-6 bg-bg px-6">
+        <Body className="font-serif text-2xl">That did not go through.</Body>
+        <ErrorNote message={error} />
+        <Muted>Your answers are still here. Nothing was lost.</Muted>
+        <Button label="Try again" onPress={onRetry} busy={busy} />
+      </SafeAreaView>
+    )
+  }
+
+  return (
+    <SafeAreaView className="flex-1 items-center justify-center gap-8 bg-bg px-6">
+      <ActivityIndicator color="#6E4A33" />
+      <Animated.Text
+        className="text-center font-serif text-2xl leading-9 text-ink"
+        style={{
+          opacity: fade,
+          // The line lifts as it arrives. Small enough to read as settling.
+          transform: [{ translateY: fade.interpolate({ inputRange: [0, 1], outputRange: [10, 0] }) }],
+        }}
+      >
+        {COPY[i]}
+      </Animated.Text>
     </SafeAreaView>
   )
 }
